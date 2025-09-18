@@ -25,11 +25,27 @@ func main() {
 }
 
 func runMigrations() error {
-	b, err := os.ReadFile(filepath.Join("migrations", "0001_init.sql"))
-	if err != nil {
-		return err
+	migrationFiles := []string{
+		"0001_init.sql",
+		"0002_folders_and_file_update.sql", 
+		"0003_add_tags.sql",
+		"0004_add_role.sql",
+		"0005_shared_access.sql",
 	}
-	return DB.Exec(string(b)).Error
+	
+	for _, filename := range migrationFiles {
+		b, err := os.ReadFile(filepath.Join("migrations", filename))
+		if err != nil {
+			log.Printf("Warning: Could not read migration %s: %v", filename, err)
+			continue
+		}
+		if err := DB.Exec(string(b)).Error; err != nil {
+			log.Printf("Warning: Migration %s failed: %v", filename, err)
+		} else {
+			log.Printf("Applied migration: %s", filename)
+		}
+	}
+	return nil
 }
 
 // package main

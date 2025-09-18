@@ -66,6 +66,9 @@ func setupRouter() *gin.Engine {
 	r.GET("/folders/:id/shared_with", ListFolderSharedWithHandler)
 	r.GET("/folders/:id/download", AuthDownloadFolderHandler)
 
+	// search endpoint
+	r.GET("/search", SearchHandler)
+
 	r.GET("/realtime", RealtimeHandler)
 
 	return r
