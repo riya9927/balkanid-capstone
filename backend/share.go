@@ -3,13 +3,13 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // generate random token for public sharing
@@ -64,6 +64,30 @@ func ShareFileHandler(c *gin.Context) {
 }
 
 // GET /download/:token
+// func PublicDownloadHandler(c *gin.Context) {
+// 	token := c.Param("token")
+// 	var file File
+// 	if err := DB.Where("public_token = ?", token).First(&file).Error; err != nil {
+// 		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
+// 		return
+// 	}
+
+// 	// increment download count
+// 	DB.Model(&file).UpdateColumn("download_count", file.DownloadCount+1)
+
+// 	// return file for download
+// 	fullPath := filepath.Join(cfg.UploadPath, file.Path)
+// 	c.FileAttachment(fullPath, file.Filename)
+
+// 	// safety: if file missing from disk
+// 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "file blob missing"})
+// 		return
+// 	}
+
+// }
+// GET /download/:token
+// Public download
 func PublicDownloadHandler(c *gin.Context) {
 	token := c.Param("token")
 	var file File
@@ -72,19 +96,14 @@ func PublicDownloadHandler(c *gin.Context) {
 		return
 	}
 
-	// increment download count
-	DB.Model(&file).UpdateColumn("download_count", file.DownloadCount+1)
+	// increment download count atomically
+	DB.Model(&file).UpdateColumn("download_count", gorm.Expr("download_count + ?", 1))
 
-	// return file for download
 	fullPath := filepath.Join(cfg.UploadPath, file.Path)
-	c.FileAttachment(fullPath, file.Filename)
-
-	// safety: if file missing from disk
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "file blob missing"})
 		return
 	}
 
-	broadcast(fmt.Sprintf(`{"file_id": %d, "download_count": %d}`, file.ID, file.DownloadCount))
-
+	c.FileAttachment(fullPath, file.Filename)
 }

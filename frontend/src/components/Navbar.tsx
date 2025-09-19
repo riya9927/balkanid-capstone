@@ -17,7 +17,7 @@ export default function Navbar({ username, userRole, onLogout }: NavbarProps) {
       <div className="navbar-container">
         <div className="navbar-brand">
           <Link to="/" className="brand-link">
-            <div className="brand-icon">🔒</div>
+
             <span className="brand-text">SecureVault</span>
           </Link>
         </div>
