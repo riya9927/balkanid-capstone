@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api";
 
 type FileItem = {
   ID: number;
@@ -7,7 +7,7 @@ type FileItem = {
   ContentType: string;
   Size: number;
   Hash: string;
-  Uploader: { Username: string };
+  Uploader?: { Username?: string };
   DownloadCount: number;
   CreatedAt: string;
 };
@@ -27,14 +27,20 @@ export default function AdminPanel() {
   const [shareFileID, setShareFileID] = useState<number | null>(null);
   const [message, setMessage] = useState("");
 
-  const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080",
-    headers: { "X-User": localStorage.getItem("username") || "" },
-  });
-
   useEffect(() => {
     fetchFiles();
     fetchStats();
+    // subscribe realtime updates to update counts
+    const es = new EventSource((import.meta.env.VITE_API_URL || "http://localhost:8080") + "/realtime");
+    es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.type === "download") {
+          setFiles((prev) => prev.map((f) => (f.ID === d.file_id ? { ...f, DownloadCount: d.count } : f)));
+        }
+      } catch {}
+    };
+    return () => es.close();
   }, []);
 
   const fetchFiles = async () => {
@@ -42,7 +48,7 @@ export default function AdminPanel() {
       const res = await api.get("/admin/files");
       setFiles(res.data.files || []);
     } catch (err: any) {
-      setMessage("Failed to load files: " + (err?.response?.data?.error || err.message));
+      setMessage("Failed to load files");
     }
   };
 
@@ -51,96 +57,61 @@ export default function AdminPanel() {
       const res = await api.get("/admin/stats");
       setStats(res.data);
     } catch (err: any) {
-      setMessage("Failed to load stats: " + (err?.response?.data?.error || err.message));
+      setMessage("Failed to load stats");
     }
   };
 
   const shareFile = async () => {
     if (!shareFileID || !shareUser) {
-      setMessage("Enter File ID and target username");
+      setMessage("Enter ID and username");
       return;
     }
     try {
-      const res = await api.post(`/admin/share/${shareFileID}`, { target_user: shareUser });
-      setMessage(`File shared with ${shareUser}`);
-      setShareFileID(null);
-      setShareUser("");
-    } catch (err: any) {
-      setMessage("Share failed: " + (err?.response?.data?.error || err.message));
+      await api.post(`/admin/share/${shareFileID}`, { target_user: shareUser });
+      setMessage("Shared");
+    } catch {
+      setMessage("Share failed");
     }
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: "20px auto", fontFamily: "Arial, sans-serif" }}>
-      <h2>Admin Panel</h2>
-      {message && <p style={{ color: "red" }}>{message}</p>}
+    <div>
+      <h3>Global Stats</h3>
+      {stats ? (
+        <ul>
+          <li>Original: {stats.total_original_bytes} bytes</li>
+          <li>Deduped: {stats.total_deduped_bytes} bytes</li>
+          <li>Savings: {stats.savings_bytes} bytes ({stats.savings_percent.toFixed(2)}%)</li>
+          <li>Downloads: {stats.total_downloads}</li>
+        </ul>
+      ) : <p>Loading...</p>}
 
-      <section style={{ marginBottom: 30 }}>
-        <h3>Global Stats</h3>
-        {stats ? (
-          <ul>
-            <li>Original Storage: {stats.total_original_bytes} bytes</li>
-            <li>Deduped Storage: {stats.total_deduped_bytes} bytes</li>
-            <li>Savings: {stats.savings_bytes} bytes ({stats.savings_percent.toFixed(2)}%)</li>
-            <li>Total Downloads: {stats.total_downloads}</li>
-          </ul>
-        ) : (
-          <p>Loading stats...</p>
-        )}
-      </section>
-
-      <section style={{ marginBottom: 30 }}>
-        <h3>All Files</h3>
-        <table border={1} cellPadding={5} style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Filename</th>
-              <th>Uploader</th>
-              <th>MIME</th>
-              <th>Size</th>
-              <th>Downloads</th>
-              <th>Created</th>
+      <h3>All Files</h3>
+      <table className="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Filename</th><th>Uploader</th><th>Size</th><th>Downloads</th>
+          </tr>
+        </thead>
+        <tbody>
+          {files.map(f => (
+            <tr key={f.ID}>
+              <td>{f.ID}</td>
+              <td>{f.Filename}</td>
+              <td>{f.Uploader?.Username}</td>
+              <td>{(f.Size/1024).toFixed(1)} KB</td>
+              <td>{f.DownloadCount}</td>
             </tr>
-          </thead>
-          <tbody>
-            {files.map((f) => (
-              <tr key={f.ID}>
-                <td>{f.ID}</td>
-                <td>{f.Filename}</td>
-                <td>{f.Uploader?.Username}</td>
-                <td>{f.ContentType}</td>
-                <td>{(f.Size / 1024).toFixed(1)} KB</td>
-                <td>{f.DownloadCount}</td>
-                <td>{new Date(f.CreatedAt).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+          ))}
+        </tbody>
+      </table>
 
-      <section>
-        <h3>Share File With User</h3>
-        <label>
-          File ID:
-          <input
-            type="number"
-            value={shareFileID || ""}
-            onChange={(e) => setShareFileID(Number(e.target.value))}
-            style={{ margin: "0 10px" }}
-          />
-        </label>
-        <label>
-          Target Username:
-          <input
-            type="text"
-            value={shareUser}
-            onChange={(e) => setShareUser(e.target.value)}
-            style={{ margin: "0 10px" }}
-          />
-        </label>
-        <button onClick={shareFile}>Share</button>
-      </section>
+      <h3>Share file as admin</h3>
+      <input type="number" placeholder="File ID" value={shareFileID ?? ""} onChange={(e)=>setShareFileID(Number(e.target.value))} />
+      <input placeholder="username" value={shareUser} onChange={(e)=>setShareUser(e.target.value)} />
+      <button onClick={shareFile}>Share</button>
+
+      {message && <div className="small-muted">{message}</div>}
     </div>
   );
 }

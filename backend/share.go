@@ -88,6 +88,7 @@ func ShareFileHandler(c *gin.Context) {
 // }
 // GET /download/:token
 // Public download
+// GET /download/:token
 func PublicDownloadHandler(c *gin.Context) {
 	token := c.Param("token")
 	var file File
@@ -96,12 +97,20 @@ func PublicDownloadHandler(c *gin.Context) {
 		return
 	}
 
-	// increment download count atomically
-	DB.Model(&file).UpdateColumn("download_count", gorm.Expr("download_count + ?", 1))
+	// atomically increment
+	if err := DB.Model(&file).Update("download_count", gorm.Expr("download_count + 1")).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update download count"})
+		return
+	}
+
+	// reload & broadcast
+	var updated File
+	DB.First(&updated, file.ID)
+	notifyDownload(updated.ID, updated.DownloadCount)
 
 	fullPath := filepath.Join(cfg.UploadPath, file.Path)
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "file blob missing"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "file missing"})
 		return
 	}
 

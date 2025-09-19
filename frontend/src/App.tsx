@@ -1,64 +1,87 @@
-import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import Layout from "./components/Layout";
-import Dashboard from "./components/Dashboard";
+import React, { useEffect, useState } from "react";
 import Upload from "./components/Upload";
-import FileManager from "./components/FileManager";
+import UserFiles from "./components/UserFiles";
 import AdminPanel from "./components/AdminPanel";
 import Search from "./components/Search";
-import Statistics from "./components/Statistics";
-import Login from "./components/Login";
+import Stats from "./components/Stats";
+import { useRealtime } from "./hooks/useRealtime";
 
 export default function App() {
   const [username, setUsername] = useState<string>("");
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [userRole, setUserRole] = useState<"user" | "admin">("user");
+  const [mode, setMode] = useState<"user" | "admin">("user");
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("username");
-    const role = localStorage.getItem("userRole") as "user" | "admin" || "user";
-    if (stored) {
-      setUsername(stored);
-      setUserRole(role);
-      setIsAuthenticated(true);
-    }
+    if (stored) setUsername(stored);
   }, []);
 
-  const handleLogin = (user: string, role: "user" | "admin" = "user") => {
-    setUsername(user);
-    setUserRole(role);
-    setIsAuthenticated(true);
-    localStorage.setItem("username", user);
-    localStorage.setItem("userRole", role);
-  };
+  useRealtime((msg) => {
+    // optional global toast for uploads/downloads
+    if (msg.type === "download") {
+      setMessage(`File ${msg.file_id} downloaded (${msg.count})`);
+      setTimeout(() => setMessage(null), 3000);
+    } else if (msg.type === "upload") {
+      setMessage(`File ${msg.filename} uploaded`);
+      setTimeout(() => setMessage(null), 3000);
+    }
+  });
 
-  const handleLogout = () => {
-    setUsername("");
-    setUserRole("user");
-    setIsAuthenticated(false);
-    localStorage.removeItem("username");
-    localStorage.removeItem("userRole");
+  const saveUsername = () => {
+    localStorage.setItem("username", username);
+    alert("Saved username: " + username);
   };
-
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />;
-  }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Layout username={username} userRole={userRole} onLogout={handleLogout} />}>
-          <Route index element={<Dashboard />} />
-          <Route path="upload" element={<Upload />} />
-          <Route path="files" element={<FileManager />} />
-          <Route path="search" element={<Search />} />
-          <Route path="statistics" element={<Statistics />} />
-          {userRole === "admin" && (
-            <Route path="admin" element={<AdminPanel />} />
-          )}
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+    <div className="container">
+      <header className="header">
+        <h1>BalkanID — File Manager</h1>
+        <div>
+          <input
+            placeholder="username (e.g. alice)"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="input-sm"
+          />
+          <button onClick={saveUsername} className="btn-sm">Save</button>
+          <button onClick={() => setMode("user")} className="btn-sm">User Mode</button>
+          <button onClick={() => setMode("admin")} className="btn-sm">Admin Mode</button>
+        </div>
+      </header>
+
+      {message && <div className="toast">{message}</div>}
+
+      <main>
+        {mode === "user" ? (
+          <>
+            <section className="card">
+              <h2>Upload</h2>
+              <Upload onDone={() => { /* optional refresh */ }} />
+            </section>
+
+            <section className="card">
+              <h2>Your Files</h2>
+              <UserFiles />
+            </section>
+          </>
+        ) : (
+          <section className="card">
+            <AdminPanel />
+          </section>
+        )}
+
+        <section className="card">
+          <Search />
+        </section>
+
+        <section className="card">
+          <Stats />
+        </section>
+      </main>
+
+      <footer className="footer">
+        Minimal frontend — connected to {import.meta.env.VITE_API_URL || "http://localhost:8080"}
+      </footer>
+    </div>
   );
 }

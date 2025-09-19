@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // DB-backed structs (not required in Go file; DB tables created by migration):
@@ -271,31 +272,50 @@ func ListFolderSharedWithHandler(c *gin.Context) {
 
 // GET /files/:id/download  (requires X-User; checks access including shared)
 func AuthDownloadFileHandler(c *gin.Context) {
-	user, err := getUserFromHeader(c)
-	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "X-User header required"})
+	username := c.GetHeader("X-User")
+	var user User
+	if err := DB.Where("username = ?", username).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user"})
 		return
 	}
-	fid, _ := strconv.Atoi(c.Param("id"))
+
+	id, _ := strconv.Atoi(c.Param("id"))
 	var file File
-	if err := DB.First(&file, fid).Error; err != nil {
+	if err := DB.First(&file, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
 		return
 	}
 
-	if !userHasAccessToFile(user, file) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "you do not have access to this file"})
+	// check ownership or sharing
+	if file.UploaderID != user.ID {
+		var access SharedFileAccess
+		if err := DB.Where("file_id = ? AND target_user_id = ?", file.ID, user.ID).First(&access).Error; err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "no access"})
+			return
+		}
+	}
+
+	// ✅ increment download count atomically
+	if err := DB.Model(&file).Update("download_count", gorm.Expr("download_count + 1")).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update download count"})
 		return
 	}
 
-	// increment download_count
-	DB.Model(&file).UpdateColumn("download_count", file.DownloadCount+1)
+	// reload updated file (optional, for realtime broadcast)
+	var updated File
+	DB.First(&updated, file.ID)
 
+	// broadcast realtime update
+	notifyDownload(updated.ID, updated.DownloadCount)
+
+	// check file exists
 	fullPath := filepath.Join(cfg.UploadPath, file.Path)
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "file blob missing"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "file missing"})
 		return
 	}
+
+	// return file
 	c.FileAttachment(fullPath, file.Filename)
 }
 
