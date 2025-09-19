@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { useApi } from "../hooks/useApi";
+import { Card, CardHeader, CardBody } from "./ui/Card";
+import { LoadingSpinner } from "./ui/LoadingSpinner";
+import { formatFileSize, formatDate, getFileIcon } from "../utils/formatters";
 
 interface DashboardStats {
   totalFiles: number;
@@ -20,12 +23,7 @@ interface RecentFile {
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080",
-    headers: { "X-User": localStorage.getItem("username") || "" },
-  });
+  const { execute, loading } = useApi();
 
   useEffect(() => {
     fetchDashboardData();
@@ -33,14 +31,13 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      setLoading(true);
-      const [filesRes, statsRes] = await Promise.all([
-        api.get("/files"),
-        api.get("/stats")
+      const [filesResult, statsResult] = await Promise.all([
+        execute({ method: 'GET', url: '/files' }),
+        execute({ method: 'GET', url: '/stats' })
       ]);
 
-      const files = filesRes.data.files || [];
-      const userStats = statsRes.data;
+      const files = filesResult?.files || [];
+      const userStats = statsResult || {};
 
       // Calculate dashboard stats
       const totalFiles = files.length;
@@ -67,17 +64,7 @@ export default function Dashboard() {
       setRecentFiles(sortedFiles);
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 B";
-    const k = 1024;
-    const sizes = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const getStoragePercentage = () => {
@@ -85,40 +72,65 @@ export default function Dashboard() {
     return Math.min((stats.storageUsed / stats.storageQuota) * 100, 100);
   };
 
-  const getFileIcon = (contentType: string) => {
-    if (contentType.startsWith("image/")) return "🖼️";
-    if (contentType.includes("pdf")) return "📄";
-    if (contentType.startsWith("video/")) return "🎥";
-    if (contentType.startsWith("audio/")) return "🎵";
-    if (contentType.includes("zip") || contentType.includes("archive")) return "📦";
-    return "📁";
-  };
-
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="spinner"></div>
+      <div className="flex items-center justify-center min-h-96">
+        <LoadingSpinner size="lg" />
         <p>Loading dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <h1 className="dashboard-title">Dashboard</h1>
-        <p className="dashboard-subtitle">
+    <div className="space-y-8">
+      <div className="text-center">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
+        <p className="text-gray-600">
           Welcome back! Here's an overview of your file storage.
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-icon">📁</div>
-          <div className="stat-content">
-            <div className="stat-value">{stats?.totalFiles || 0}</div>
-            <div className="stat-label">Total Files</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardBody className="flex items-center space-x-4">
+            <div className="text-3xl">📁</div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{stats?.totalFiles || 0}</div>
+              <div className="text-sm text-gray-600">Total Files</div>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardBody className="flex items-center space-x-4">
+            <div className="text-3xl">💾</div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{formatFileSize(stats?.totalSize || 0)}</div>
+              <div className="text-sm text-gray-600">Storage Used</div>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardBody className="flex items-center space-x-4">
+            <div className="text-3xl">⬆️</div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{stats?.recentUploads || 0}</div>
+              <div className="text-sm text-gray-600">Recent Uploads</div>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardBody className="flex items-center space-x-4">
+            <div className="text-3xl">📊</div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{getStoragePercentage().toFixed(1)}%</div>
+              <div className="text-sm text-gray-600">Quota Used</div>
+            </div>
+          </CardBody>
+        </Card>
           </div>
         </div>
 
@@ -148,230 +160,60 @@ export default function Dashboard() {
       </div>
 
       {/* Storage Usage */}
-      <div className="card mb-6">
-        <div className="card-header">
-          <h2 className="text-lg font-semibold">Storage Usage</h2>
-        </div>
-        <div className="card-body">
-          <div className="storage-info">
-            <div className="storage-text">
+      <Card>
+        <CardHeader>
+          <h2 className="text-xl font-semibold text-gray-900">Storage Usage</h2>
+        </CardHeader>
+        <CardBody>
+          <div className="space-y-4">
+            <div className="flex justify-between text-sm">
               <span>{formatFileSize(stats?.storageUsed || 0)}</span>
-              <span className="text-secondary"> of </span>
+              <span className="text-gray-500"> of </span>
               <span>{formatFileSize(stats?.storageQuota || 0)}</span>
             </div>
-            <div className="progress">
-              <div 
-                className="progress-bar" 
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className="bg-blue-600 h-3 rounded-full transition-all duration-300"
                 style={{ width: `${getStoragePercentage()}%` }}
               ></div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Recent Files */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="text-lg font-semibold">Recent Files</h2>
-        </div>
-        <div className="card-body">
+      <Card>
+        <CardHeader>
+          <h2 className="text-xl font-semibold text-gray-900">Recent Files</h2>
+        </CardHeader>
+        <CardBody>
           {recentFiles.length > 0 ? (
-            <div className="recent-files">
+            <div className="space-y-4">
               {recentFiles.map((file) => (
-                <div key={file.ID} className="recent-file-item">
-                  <div className="file-icon">
+                <div key={file.ID} className="flex items-center space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="text-2xl">
                     {getFileIcon(file.ContentType)}
                   </div>
-                  <div className="file-info">
-                    <div className="file-name">{file.Filename}</div>
-                    <div className="file-meta">
-                      {formatFileSize(file.Size)} • {new Date(file.CreatedAt).toLocaleDateString()}
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{file.Filename}</div>
+                    <div className="text-sm text-gray-500">
+                      {formatFileSize(file.Size)} • {formatDate(file.CreatedAt)}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="empty-state">
-              <div className="empty-icon">📂</div>
-              <p>No files uploaded yet</p>
-              <a href="/upload" className="btn btn-primary btn-sm">
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📂</div>
+              <p className="text-gray-500 mb-4">No files uploaded yet</p>
+              <a href="/upload" className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 Upload Your First File
               </a>
             </div>
           )}
-        </div>
-      </div>
-
-      <style jsx>{`
-        .dashboard {
-          max-width: 1200px;
-          margin: 0 auto;
-        }
-
-        .dashboard-loading {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          min-height: 400px;
-          gap: var(--space-4);
-        }
-
-        .dashboard-header {
-          margin-bottom: var(--space-8);
-        }
-
-        .dashboard-title {
-          font-size: 2rem;
-          font-weight: 700;
-          color: var(--secondary-800);
-          margin-bottom: var(--space-2);
-        }
-
-        .dashboard-subtitle {
-          color: var(--secondary-600);
-          font-size: 1rem;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: var(--space-6);
-          margin-bottom: var(--space-8);
-        }
-
-        .stat-card {
-          background: white;
-          border-radius: var(--radius-lg);
-          padding: var(--space-6);
-          box-shadow: var(--shadow-sm);
-          border: 1px solid var(--secondary-200);
-          display: flex;
-          align-items: center;
-          gap: var(--space-4);
-          transition: all var(--transition-normal);
-        }
-
-        .stat-card:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
-        }
-
-        .stat-icon {
-          font-size: 2rem;
-          width: 60px;
-          height: 60px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--primary-50);
-          border-radius: var(--radius-lg);
-        }
-
-        .stat-content {
-          flex: 1;
-        }
-
-        .stat-value {
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: var(--secondary-800);
-          margin-bottom: var(--space-1);
-        }
-
-        .stat-label {
-          color: var(--secondary-600);
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-
-        .storage-info {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-3);
-        }
-
-        .storage-text {
-          font-weight: 500;
-          color: var(--secondary-700);
-        }
-
-        .recent-files {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-4);
-        }
-
-        .recent-file-item {
-          display: flex;
-          align-items: center;
-          gap: var(--space-3);
-          padding: var(--space-3);
-          border-radius: var(--radius-md);
-          transition: background-color var(--transition-fast);
-        }
-
-        .recent-file-item:hover {
-          background-color: var(--secondary-50);
-        }
-
-        .file-icon {
-          font-size: 1.5rem;
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--primary-50);
-          border-radius: var(--radius-md);
-        }
-
-        .file-info {
-          flex: 1;
-        }
-
-        .file-name {
-          font-weight: 500;
-          color: var(--secondary-800);
-          margin-bottom: var(--space-1);
-        }
-
-        .file-meta {
-          font-size: 0.875rem;
-          color: var(--secondary-600);
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: var(--space-8);
-        }
-
-        .empty-icon {
-          font-size: 3rem;
-          margin-bottom: var(--space-4);
-        }
-
-        .empty-state p {
-          color: var(--secondary-600);
-          margin-bottom: var(--space-4);
-        }
-
-        @media (max-width: 768px) {
-          .stats-grid {
-            grid-template-columns: 1fr;
-            gap: var(--space-4);
-          }
-
-          .stat-card {
-            padding: var(--space-4);
-          }
-
-          .dashboard-title {
-            font-size: 1.5rem;
-          }
-        }
-      `}</style>
+        </CardBody>
+      </Card>
     </div>
   );
 }

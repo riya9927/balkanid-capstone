@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import Navbar from "./components/Navbar";
+import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import Upload from "./components/Upload";
 import FileManager from "./components/FileManager";
@@ -8,7 +8,6 @@ import AdminPanel from "./components/AdminPanel";
 import Search from "./components/Search";
 import Statistics from "./components/Statistics";
 import Login from "./components/Login";
-import "./styles/global.css";
 
 export default function App() {
   const [username, setUsername] = useState<string>("");
@@ -47,26 +46,19 @@ export default function App() {
 
   return (
     <Router>
-      <div className="app">
-        <Navbar 
-          username={username} 
-          userRole={userRole} 
-          onLogout={handleLogout} 
-        />
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/files" element={<FileManager />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/statistics" element={<Statistics />} />
-            {userRole === "admin" && (
-              <Route path="/admin" element={<AdminPanel />} />
-            )}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-      </div>
+      <Routes>
+        <Route path="/" element={<Layout username={username} userRole={userRole} onLogout={handleLogout} />}>
+          <Route index element={<Dashboard />} />
+          <Route path="upload" element={<Upload />} />
+          <Route path="files" element={<FileManager />} />
+          <Route path="search" element={<Search />} />
+          <Route path="statistics" element={<Statistics />} />
+          {userRole === "admin" && (
+            <Route path="admin" element={<AdminPanel />} />
+          )}
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </Router>
   );
 }
