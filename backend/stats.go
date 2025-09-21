@@ -14,8 +14,6 @@ type StatsResponse struct {
 	SavingsPercent float64 `json:"savings_percent"`
 }
 
-// GET /stats  -> per-user storage stats
-// GET /stats
 func UserStatsHandler(c *gin.Context) {
 	username := c.GetHeader("X-User")
 	if username == "" {
@@ -29,11 +27,9 @@ func UserStatsHandler(c *gin.Context) {
 		return
 	}
 
-	// original bytes: sum of sizes of all files by this user
 	var orig int64
 	DB.Model(&File{}).Where("uploader_id = ?", user.ID).Select("COALESCE(SUM(size),0)").Scan(&orig)
 
-	// deduped bytes: sum of unique hashes per user
 	type Row struct {
 		Size int64
 		Hash string
@@ -66,7 +62,6 @@ func UserStatsHandler(c *gin.Context) {
 	})
 }
 
-// small helper type for scanning nullable int64
 type sqlNullInt64 struct {
 	Int64 int64
 	Valid bool

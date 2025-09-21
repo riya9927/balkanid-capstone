@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// GET /search?q=...&mime=...&minSize=...&maxSize=...&startDate=...&endDate=...&tags=...&uploader=...
 func SearchHandler(c *gin.Context) {
 	q := c.Query("q")                // filename substring
 	mime := c.Query("mime")          // MIME type
@@ -18,7 +17,7 @@ func SearchHandler(c *gin.Context) {
 	maxSizeStr := c.Query("maxSize") // maximum size in bytes
 	startDateStr := c.Query("startDate")
 	endDateStr := c.Query("endDate")
-	tags := c.Query("tags") // comma separated
+	tags := c.Query("tags")
 	uploaderName := c.Query("uploader")
 
 	db := DB.Model(&File{}).Preload("Uploader")

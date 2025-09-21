@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// POST /folders         -> create folder { "name": "MyDocs" }
+// POST /folders
 func CreateFolderHandler(c *gin.Context) {
 	username := c.GetHeader("X-User")
 	if username == "" {
@@ -43,7 +43,7 @@ func CreateFolderHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"folder": fold})
 }
 
-// GET /folders       -> list user's folders
+// GET /folders
 func ListFoldersHandler(c *gin.Context) {
 	username := c.GetHeader("X-User")
 	var user User
@@ -56,7 +56,7 @@ func ListFoldersHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"folders": folders})
 }
 
-// GET /folders/:id/files  -> list files in folder
+// GET /folders/:id/files
 func ListFilesInFolderHandler(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -100,7 +100,6 @@ func MoveFileToFolderHandler(c *gin.Context) {
 		return
 	}
 
-	// ensure folder exists and belongs to user (or admin)
 	var folder Folder
 	if err := DB.First(&folder, body.FolderID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "folder not found"})
@@ -160,7 +159,7 @@ func ShareFolderHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "unshared"})
 }
 
-// GET /download/folder/:token  -> streams a zip of folder contents
+// GET /download/folder/:token
 func DownloadFolderHandler(c *gin.Context) {
 	token := c.Param("token")
 	var folder Folder
@@ -169,7 +168,6 @@ func DownloadFolderHandler(c *gin.Context) {
 		return
 	}
 
-	// find all files in folder
 	var files []File
 	DB.Where("folder_id = ?", folder.ID).Find(&files)
 	if len(files) == 0 {
@@ -181,18 +179,15 @@ func DownloadFolderHandler(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename=\""+zipName+"\"")
 	c.Header("Content-Type", "application/zip")
 
-	// create zip writer writing to response
 	zw := zip.NewWriter(c.Writer)
 	defer zw.Close()
 
 	for _, f := range files {
-		// increment download count per file
 		DB.Model(&f).UpdateColumn("download_count", f.DownloadCount+1)
 
 		fullPath := filepath.Join(cfg.UploadPath, f.Path)
 		fi, err := os.Open(fullPath)
 		if err != nil {
-			// skip missing files but continue
 			continue
 		}
 		defer fi.Close()
@@ -203,5 +198,4 @@ func DownloadFolderHandler(c *gin.Context) {
 		w, _ := zw.CreateHeader(hdr)
 		io.Copy(w, fi)
 	}
-	// zip writer will be closed by defer; streamed to client
 }

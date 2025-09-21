@@ -62,33 +62,6 @@ func ShareFileHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "unshared"})
 	}
 }
-
-// GET /download/:token
-// func PublicDownloadHandler(c *gin.Context) {
-// 	token := c.Param("token")
-// 	var file File
-// 	if err := DB.Where("public_token = ?", token).First(&file).Error; err != nil {
-// 		c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
-// 		return
-// 	}
-
-// 	// increment download count
-// 	DB.Model(&file).UpdateColumn("download_count", file.DownloadCount+1)
-
-// 	// return file for download
-// 	fullPath := filepath.Join(cfg.UploadPath, file.Path)
-// 	c.FileAttachment(fullPath, file.Filename)
-
-// 	// safety: if file missing from disk
-// 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "file blob missing"})
-// 		return
-// 	}
-
-// }
-// GET /download/:token
-// Public download
-// GET /download/:token
 func PublicDownloadHandler(c *gin.Context) {
 	token := c.Param("token")
 	var file File

@@ -12,16 +12,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// DB-backed structs (not required in Go file; DB tables created by migration):
-// shared_file_access(file_id, target_user_id)
-// shared_folder_access(folder_id, target_user_id)
-
 // request body for share/unshare
 type targetUserRequest struct {
 	TargetUser string `json:"target_user"`
 }
 
-// Helper: get user by header (creates if missing for dev convenience)
+// Helper: get user by header
 func getUserFromHeader(c *gin.Context) (User, error) {
 	username := c.GetHeader("X-User")
 	if username == "" {
@@ -32,14 +28,12 @@ func getUserFromHeader(c *gin.Context) (User, error) {
 	}
 	var user User
 	if err := DB.Where("username = ?", username).First(&user).Error; err != nil {
-		// create user if not exist (dev convenience)
+		// create user if not exist
 		user = User{Username: username}
 		DB.Create(&user)
 	}
 	return user, nil
 }
-
-// ----------------- Access helpers -----------------
 
 func userHasAccessToFile(user User, file File) bool {
 	// uploader
@@ -74,8 +68,6 @@ func userHasAccessToFolder(user User, folder Folder) bool {
 	DB.Raw("SELECT COUNT(1) FROM shared_folder_access WHERE folder_id = ? AND target_user_id = ?", folder.ID, user.ID).Scan(&count)
 	return count > 0
 }
-
-// ----------------- File share endpoints -----------------
 
 // POST /files/:id/share/user
 func ShareFileWithUserHandler(c *gin.Context) {
@@ -181,8 +173,6 @@ func ListFileSharedWithHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"file_id": file.ID, "shared_with": users})
 }
 
-// ----------------- Folder share endpoints -----------------
-
 // POST /folders/:id/share/user
 func ShareFolderWithUserHandler(c *gin.Context) {
 	user, err := getUserFromHeader(c)
@@ -268,9 +258,7 @@ func ListFolderSharedWithHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"folder_id": folder.ID, "shared_with": users})
 }
 
-// ----------------- Authenticated download endpoints -----------------
-
-// GET /files/:id/download  (requires X-User; checks access including shared)
+// GET /files/:id/download
 func AuthDownloadFileHandler(c *gin.Context) {
 	username := c.GetHeader("X-User")
 	var user User
@@ -295,13 +283,11 @@ func AuthDownloadFileHandler(c *gin.Context) {
 		}
 	}
 
-	// ✅ increment download count atomically
 	if err := DB.Model(&file).Update("download_count", gorm.Expr("download_count + 1")).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update download count"})
 		return
 	}
 
-	// reload updated file (optional, for realtime broadcast)
 	var updated File
 	DB.First(&updated, file.ID)
 

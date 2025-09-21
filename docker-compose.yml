@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:15
+    container_name: balkanid_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-balkanid}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-riya9927}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-balkanid}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: balkanid_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      UPLOAD_PATH: /app/uploads
+      PORT: ${BACKEND_PORT:-8080}
+      STORAGE_QUOTA_BYTES: ${STORAGE_QUOTA_BYTES:-10485760}
+      RATE_LIMIT_PER_SEC: ${RATE_LIMIT_PER_SEC:-2}
+      RATE_LIMIT_BURST: ${RATE_LIMIT_BURST:-4}
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/migrations:/app/migrations:ro
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: balkanid_frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      VITE_API_URL: "http://localhost:${BACKEND_PORT:-8080}"
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:

@@ -16,7 +16,6 @@ export function useRealtime(onMessage: (data: any) => void) {
 
     es.onerror = (err) => {
       console.error("SSE error", err);
-      // try reconnect on error (EventSource handles retries by default)
     };
 
     return () => es.close();

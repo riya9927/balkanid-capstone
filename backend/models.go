@@ -38,8 +38,6 @@ type File struct {
 	CreatedAt     time.Time
 	Tags          string
 }
-
-// SharedFileAccess links a File to a User it is shared with
 type SharedFileAccess struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	FileID       uint      `gorm:"not null;index" json:"file_id"`
@@ -50,15 +48,11 @@ type SharedFileAccess struct {
 	File       File `gorm:"foreignKey:FileID"`
 	TargetUser User `gorm:"foreignKey:TargetUserID"`
 }
-
-// SharedFolderAccess links a Folder to a User it is shared with
 type SharedFolderAccess struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	FolderID     uint      `gorm:"not null;index" json:"folder_id"`
 	TargetUserID uint      `gorm:"not null;index" json:"target_user_id"`
 	CreatedAt    time.Time `json:"created_at"`
-
-	// Relations
-	Folder     Folder `gorm:"foreignKey:FolderID"`
-	TargetUser User   `gorm:"foreignKey:TargetUserID"`
+	Folder       Folder    `gorm:"foreignKey:FolderID"`
+	TargetUser   User      `gorm:"foreignKey:TargetUserID"`
 }

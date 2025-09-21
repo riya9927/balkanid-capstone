@@ -30,7 +30,6 @@ func GetFileHandler(c *gin.Context) {
 		return
 	}
 
-	// check access: if public -> ok, else require X-User header and shared/upload/admin
 	if file.Public {
 		c.JSON(http.StatusOK, gin.H{"file": file})
 		return

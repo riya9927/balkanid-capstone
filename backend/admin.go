@@ -1,17 +1,3 @@
-// package main
-
-// import (
-// 	"net/http"
-
-// 	"github.com/gin-gonic/gin"
-// )
-
-// func AdminListFiles(c *gin.Context) {
-// 	var files []File
-// 	DB.Preload("Uploader").Find(&files)
-// 	c.JSON(http.StatusOK, gin.H{"files": files})
-// }
-
 package main
 
 import (
@@ -20,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET /admin/files → list all files with uploader details
+// GET /admin/files
 func AdminListFiles(c *gin.Context) {
 	var files []File
 	if err := DB.Preload("Uploader").Find(&files).Error; err != nil {
@@ -30,7 +16,7 @@ func AdminListFiles(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"files": files})
 }
 
-// GET /admin/stats → show global stats (deduped vs original, downloads)
+// GET /admin/stats
 func AdminStats(c *gin.Context) {
 	var totalOriginal int64
 	var totalDeduped int64
@@ -65,7 +51,7 @@ func AdminStats(c *gin.Context) {
 	})
 }
 
-// POST /admin/share/:fileID → share a file with another user
+// POST /admin/share/:fileID
 type ShareRequest struct {
 	TargetUser string `json:"target_user"`
 }
@@ -92,7 +78,7 @@ func AdminShareFile(c *gin.Context) {
 		return
 	}
 
-	// create a duplicate metadata record for the target user (like dedup sharing)
+	// create a duplicate metadata record for the target user
 	newFile := File{
 		Filename:    file.Filename,
 		ContentType: file.ContentType,
