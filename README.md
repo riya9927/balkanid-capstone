@@ -41,14 +41,14 @@ It supports **efficient storage (deduplication)**, **powerful search**, and **co
 
 ---
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/BalkanID-University/vit-2026-capstone-internship-hiring-task-riya9927
 cd balkanid-file-vault 
 ```
-###2. Environment Variables
+### 2. Environment Variables
 - Create a .env file in the project root:
 ```bash
 # Backend
@@ -62,13 +62,15 @@ STORAGE_QUOTA=10485760
 # Frontend
 VITE_API_URL=http://backend:8080
 ```
-###3. Run with Docker
+### 3. Run with Docker
 ```bash
 docker compose up --build
 ```
-###4. Access the App
+### 4. Access the App
 - **Frontend:** http://localhost:5173
 - **Backend API:** http://localhost:8080
+
+---
 
 ## Database Schema Overview
 
