@@ -34,32 +34,32 @@ It supports **efficient storage (deduplication)**, **powerful search**, and **co
 ### Home Dashboard
 Quick access to files, statistics, and admin features from a clean and modern dashboard.
 
-![Home Page](assests/file.png)
+![Home Page](assets/file.png)
 
 ### Statistics Page
 Displays detailed storage usage (deduplicated vs. original) and savings with real-time updates.
 
-![Statistics Page](assests/Statistics.png)
+![Statistics Page](assets/Statistics.png)
 
 ### Admin Page
 Admin-only interface to manage all user files, view download counts, and share files with others.
 
-![Admin Page](assests/Admin.png)
+![Admin Page](assets/Admin.png)
 
 ### Upload Page
 Drag-and-drop interface for uploading `.pdf`,`.png`,`.jpg`,`.jpeg`,`.doc`,`.zip` etc.
 
-![Upload Page](assests/Upload.png)
+![Upload Page](assets/Upload.png)
 
 ### Search Page
 Advanced search with filters for filename, MIME type, size, date, tags, and uploader.
 
-![Search Page](assests/Search1.png)
+![Search Page](assets/Search1.png)
 
 ###  Search result 
 Displays a structured list of files matching search criteria with details like size, type, uploader, downloads, and date.
 
-![Search result ](assests/Search2.png)
+![Search result ](assets/Search2.png)
 
 
 ---
